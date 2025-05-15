@@ -74,7 +74,6 @@ async function getMembershipId(gamertag) {
 
     if (filtered.length === 0) {
       if (results.length > 0) {
-          // Este log é útil para depurar "Jogador não encontrado"
           console.log(`[getMembershipId Debug] Nenhum resultado para '${nameInput}#${codeInput}'. Resultados da API para prefixo '${nameInput}':`);
           results.slice(0,3).forEach(r => console.log(`  -> Nome API: ${r.bungieGlobalDisplayName}#${r.bungieGlobalDisplayNameCode}`));
       }
@@ -120,12 +119,11 @@ async function getCharacters(membershipType, membershipId) {
         });
         return Object.values(res.data.Response?.characters?.data || {});
     } catch (err) {
-        console.error(`[Characters] Erro (mId ${membershipId}):`, err.response?.data || error.message);
+        console.error(`[Characters] Erro (mId ${membershipId}):`, err.response?.data || err.message);
         return [];
     }
 }
 
-// Removido modeFilterForContext dos parâmetros
 async function groupActivitiesByExactNameAndMode(activities, activityDefinitions, activityModeDefinitions) {
   const activityStats = {}; 
 
@@ -152,6 +150,7 @@ async function groupActivitiesByExactNameAndMode(activities, activityDefinitions
     const modeNameLower = displayModeName.toLowerCase().trim();
     const activityNameTrimmed = activityName.trim();
     const cleanActivityName = activityNameTrimmed.replace(/:$/, '').trim();
+
 
     if (displayModeName && 
         modeNameLower !== "" &&
@@ -210,7 +209,6 @@ async function getAllActivitiesWithDetailedModes(gamertag, modeFilter) {
 
   if (allApiActivities.length === 0) return [];
   
-  // Não passa mais modeFilter para a função de agrupamento
   const groupedActivities = await groupActivitiesByExactNameAndMode(allApiActivities, activityDefinitions, activityModeDefinitions);
   return groupedActivities;
 }
