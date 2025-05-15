@@ -1,3 +1,15 @@
+// Adicionado para o servidor HTTP (Keep-Alive)
+const http = require('http');
+
+// Cria um servidor HTTP simples que responde a qualquer requisição
+// Isso é para o UptimeRobot ou similar manter o bot acordado no Render
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot do EcoLight está vivo!\n');
+}).listen(process.env.PORT || 3000, () => { // Render define a variável PORT
+  console.log('Servidor HTTP para keep-alive rodando.');
+});
+
 const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, EmbedBuilder } = require('discord.js');
 const { getAllActivitiesWithDetailedModes } = require('./bungie');
 require('dotenv').config();
