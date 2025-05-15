@@ -10,7 +10,7 @@ http.createServer((req, res) => {
   console.log('Servidor HTTP para keep-alive rodando.');
 });
 
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, EmbedBuilder, ChannelType } = require('discord.js'); // Adicionado ChannelType
 const { getAllActivitiesWithDetailedModes } = require('./bungie');
 require('dotenv').config();
 
@@ -18,33 +18,64 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
 
-// Removido GRANDMASTER
 const ACTIVITY_MODES_FILTER = { 
     RAIDS: 4, 
     DUNGEONS: 82,
+    // Removida a entrada GRANDMASTER conforme sua última solicitação
 };
 
-// Removido GRANDMASTER
 const GENERIC_THUMBNAILS = {
     RAIDS: "https://www.bungie.net/common/destiny2_content/icons/fc31e8133003b3539918599769869979.png",
     DUNGEONS: "https://www.bungie.net/common/destiny2_content/icons/934BF28E6813A5775F079E8F0DD29703.png"
+    // Removida a entrada GRANDMASTER
 };
+
+// Adicionado para o servidor HTTP (Keep-Alive no Render)
+const http = require('http');
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot do EcoLight está vivo!\n');
+}).listen(process.env.PORT || 3000, () => {
+  console.log('Servidor HTTP para keep-alive rodando.');
+});
+
 
 client.once('ready', () => console.log(`✅ Bot iniciado como ${client.user.tag}`));
 
 client.on('messageCreate', async (message) => {
-  if (message.author.bot || !message.content.startsWith('!eco')) return;
-  const args = message.content.split(' ');
-  const gamertagWithCode = args.slice(1).join(' ');
-  if (!gamertagWithCode || !gamertagWithCode.includes('#')) {
-    return message.reply('Formato incorreto! Use: `!eco Nome#1234`');
+  if (message.author.bot) return; // Ignora mensagens de outros bots
+
+  // Verifica se a mensagem começa com o comando !eco
+  if (message.content.startsWith('!eco')) {
+    const args = message.content.split(' ');
+    // O comando em si é args[0] ('!eco'). A gamertag começa em args[1].
+    const gamertagWithCode = args.slice(1).join(' '); // Pega tudo após "!eco "
+
+    // Verifica se a gamertag foi fornecida e tem o formato correto
+    if (!gamertagWithCode || !gamertagWithCode.includes('#') || gamertagWithCode.split('#')[0].trim() === "" || isNaN(parseInt(gamertagWithCode.split('#')[1]))) {
+      // Envia uma mensagem de erro se o formato do comando !eco estiver incorreto
+      return message.reply('Hmm, parece que o formato do comando está incorreto. 🤔\nUse: `!eco NomeDoJogador#1234`\nExemplo: `!eco GuardiãoLendário#5678`');
+    }
+
+    // Lógica para o comando !eco (botões)
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`raids_${gamertagWithCode}`).setLabel('Raids').setEmoji('☠️').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`masmorras_${gamertagWithCode}`).setLabel('Masmorras').setEmoji('⚔️').setStyle(ButtonStyle.Secondary)
+    );
+    await message.reply({ content: `📊 Estatísticas detalhadas de **${gamertagWithCode}**. Escolha a categoria abaixo:`, components: [row] });
+  
+  } else {
+    // Se a mensagem NÃO começa com !eco E NÃO é de um bot:
+    // Responde com a mensagem amigável.
+    // Para evitar que o bot responda a toda e qualquer mensagem em um canal de servidor,
+    // você pode adicionar uma condição para responder apenas se for mencionado ou em DM.
+    // Exemplo de condição mais restritiva (descomente se preferir):
+    // if (message.mentions.has(client.user.id) || message.channel.type === ChannelType.DM) {
+    
+    await message.reply("Olá! 👋 Por enquanto, eu só entendo o comando `!eco NomeDoJogador#1234` para buscar suas estatísticas de Destiny 2.\nPor favor, tente usá-lo nesse formato. 😊\nExemplo: `!eco GuardiãoLendário#5678`");
+    
+    // } // Fecharia o if da condição mais restritiva
   }
-  // Removido botão de Grão-Mestre
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`raids_${gamertagWithCode}`).setLabel('Raids').setEmoji('☠️').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`masmorras_${gamertagWithCode}`).setLabel('Masmorras').setEmoji('⚔️').setStyle(ButtonStyle.Secondary)
-  );
-  await message.reply({ content: `📊 Estatísticas detalhadas de **${gamertagWithCode}**. Escolha:`, components: [row] });
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -61,23 +92,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     modeFilter = ACTIVITY_MODES_FILTER.DUNGEONS; 
     activityTypeName = 'Masmorras';
     currentGenericThumbnail = GENERIC_THUMBNAILS.DUNGEONS;
-  // Removido bloco else if para 'grandmaster'
   } else {
-    return interaction.reply({ content: 'Tipo desconhecido.', ephemeral: true });
+    // Este caso não deve ser atingido se os botões estiverem corretos
+    return interaction.reply({ content: 'Tipo de atividade desconhecido.', ephemeral: true });
   }
 
   try {
     await interaction.deferReply();
     const activitiesData = await getAllActivitiesWithDetailedModes(gamertag, modeFilter);
-    
-    // Removido log específico de [EmbedDebug - grandmaster]
-    // Se precisar depurar 'count' inválido no futuro, pode adicionar um log geral aqui:
-    // activitiesData.forEach((act, index) => {
-    //     if (typeof act.count !== 'number' || isNaN(act.count)) {
-    //         console.error(`[EmbedDebug - ${tipo}] ERRO COUNT: '${act.name}' (índice ${index}): ${act.count}`);
-    //     }
-    // });
-
 
     if (!activitiesData || activitiesData.length === 0) {
       await interaction.editReply(`Nenhuma conclusão de ${activityTypeName.toLowerCase()} encontrada para **${gamertag}**.`);
@@ -87,8 +109,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     activitiesData.sort((a, b) => a.name.localeCompare(b.name));
     
     const embed = new EmbedBuilder()
-      .setColor(tipo === 'raids' ? '#007bff' : '#ffc107') // Simplificada a lógica de cor
-      .setTitle(`⚔️ ${activityTypeName} Detalhadas de ${gamertag}`) // Emoji pode ser ajustado se necessário
+      .setColor(tipo === 'raids' ? '#007bff' : '#ffc107')
+      .setTitle(`⚔️ ${activityTypeName} Detalhadas de ${gamertag}`)
       .setTimestamp();
 
     let finalThumbnailUrl = null;
